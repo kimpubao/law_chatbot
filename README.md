@@ -170,4 +170,4 @@ chatbot_project_data/
 
 **깃허브 주소** ![GitHub](https://img.shields.io/badge/GitHub-www.github.com/kimpubao-black?logo=github)
 
-**이메일**![Email](https://img.shields.io/badge/Email-dfg7785@gmail.com-red?ogo=gmail)
+**이메일** ![Email](https://img.shields.io/badge/Email-dfg7785@gmail.com-red?ogo=gmail)

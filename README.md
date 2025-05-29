@@ -134,7 +134,7 @@ chatbot_project_data/
 **입력**  
   - 한국에서 사기죄가 성립되기 위한 요건은 무엇인가요?
 
-**출력 (EXAONE 기반 예상 답변 / 추후 실제 답변으로 수정정)** 
+**출력 (EXAONE 기반 예상 답변 / 추후 실제 답변으로 수정)** 
 - 사기죄는 행위자가 타인을 기망하여 착오에 빠뜨리고, 그로 인해 재산상 이익을 취득하거나 손해를 발생시키는 경우 성립합니다. 이는 형법 제347조에 명시되어 있습니다.
 ---
 
@@ -166,8 +166,8 @@ chatbot_project_data/
 
 ---
 
-![Author](https://img.shields.io/badge/Author-김상준-blue)
+**작성자** ![Author](https://img.shields.io/badge/Author-김상준-blue)
 
-![GitHub](https://img.shields.io/badge/GitHub-www.github.com/kimpubao-black?logo=github)
+**깃허브 주소** ![GitHub](https://img.shields.io/badge/GitHub-www.github.com/kimpubao-black?logo=github)
 
-![Email](https://img.shields.io/badge/Email-dfg7785@gmail.com-red?ogo=gmail)
+**이메일**![Email](https://img.shields.io/badge/Email-dfg7785@gmail.com-red?ogo=gmail)

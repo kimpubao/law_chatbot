@@ -55,7 +55,7 @@
 
 ---
 ## 시스템 구성도 (RAG 구조)
-![RAG Architecture](rag_architecture.png)
+![RAG Architecture](./static/rag_architecture.png)
 ---
 
 ## 🤖 사용 모델 소개 및 논문
@@ -117,6 +117,39 @@ chatbot_project_data/
     └── law_Regulations_Text_Analysis_Data/
         └── 법령, 판결문, 약관 텍스트 데이터
 ```
+
+## 📁 프로젝트 디렉토리 구조
+```
+law_chatbot/
+├── app/
+│ ├── backend.py ← Flask 서버
+│ ├── main_ui.py ← Gradio UI 실행기
+│ └── utils/ ← 전처리, OCR 등 공통 함수
+│     └── preprocessing.py
+│
+├── models/ ← 모델별 실행 로직 분리
+│ ├── model_KoAlpaca7B.py
+│ ├── model_KoAlpaca12B.py
+│ ├── model_Llama3.py
+│ └── model_Mistral.py
+│
+├── templates/ ← HTML 기반 UI (Flask용)
+│   └── main.html
+│
+├── static/ ← 구조도, 출력 이미지 등 정적 파일
+│   └── RAG_architecture.png
+│
+├── uploads/ ← (예시 전용)사용자 업로드 파일 저장소
+│
+├── data/ ← (예시 전용) 테스트용 데이터셋
+│   └── sample_dataset.json ← 실제 대용량은 외장하드에 있음
+│
+├── README.md
+├── requirements.txt
+└── .gitignore
+
+```
+
 ---
 ## 📊 모델별 성능 비교
 

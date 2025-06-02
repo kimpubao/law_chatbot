@@ -12,10 +12,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # 폴더가 없으면 생성
 
 # 모델 이름과 해당 Python 파일 매핑
 model_map = {
-    "KoAlpaca-7B-LoRA": "model_KoAlpaca7B.py",
-    "KoAlpaca-12.8B": "model_KoAlpaca12B.py",
-    "Llama-3-Open-Ko-8B": "model_Llama3.py",
-    "Mistral-7B-Instruct": "model_Mistral.py"
+    "EXAONE3.5_7.8B": "models/EXAONE3.5_7.8B.ipynb",
+    "KLUE_RoBERTa": "models/KLUE_RoBERTa.ipynb",
+    "KoreALBERT": "models/KoreALBERT.ipynb",
 }
 
 # 🔹 메인 페이지 요청 시 HTML 반환

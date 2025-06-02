@@ -2,10 +2,9 @@ import gradio as gr
 import os
 
 model_choices = [
-    "KoAlpaca-7B-LoRA",
-    "KoAlpaca-12.8B",
-    "Llama-3-Open-Ko-8B",
-    "Mistral-7B-Instruct"
+    "EXAONE3.5_7.8B",
+    "KLUE_RoBERTa",
+    "KoreALBERT"
 ]
 
 chat_history = []
@@ -22,17 +21,17 @@ def format_history(history):
     return "\n\n".join([f"**{sender}**: {msg}" for sender, msg in history])
 
 def build_interface():
-    with gr.Blocks(title="세무톡") as demo:
+    with gr.Blocks(title="법무톡") as demo:
         with gr.Row():
             gr.Markdown("<h1 style='text-align: left;'><span style='font-size: 24px;'>💼 TAX Helper</span></h1>", elem_id="title")
             with gr.Column():
                 gr.Markdown("<label style='font-weight: bold;'>모델 선택:</label>")
                 model_dropdown = gr.Dropdown(choices=model_choices, value=model_choices[0], label=None)
 
-        chatbot_output = gr.Markdown("안녕하세요! 세무 상담 도우미입니다. 무엇을 도와드릴까요?", elem_id="chatbox")
+        chatbot_output = gr.Markdown("안녕하세요! 법무 상담 도우미입니다. 무엇을 도와드릴까요?", elem_id="chatbox")
 
         with gr.Row():
-            user_input = gr.Textbox(placeholder="세무 관련 질문을 입력하세요...", lines=2, label=None)
+            user_input = gr.Textbox(placeholder="법무무 관련 질문을 입력하세요...", lines=2, label=None)
             send_btn = gr.Button("▶", elem_id="send-btn")
 
         file_upload = gr.File(label="＋", file_types=[".pdf", ".xls", ".xlsx", ".csv", ".doc", ".docx", ".hwp", ".ppt", ".pptx", ".jpg", ".jpeg", ".png"], interactive=True)

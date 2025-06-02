@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template 
 from werkzeug.utils import secure_filename
 import os
 import importlib.util
@@ -20,7 +20,7 @@ model_map = {
 # 🔹 메인 페이지 요청 시 HTML 반환
 @app.route("/")
 def serve_html():
-    return send_from_directory("templates", "main.html")  # HTML 파일 경로
+    return render_template("main.html") # templates 폴더에서 main.html 자동 로드
 
 # 🔹 POST 요청 처리 (질문, 모델, 파일 받기)
 @app.route("/ask", methods=["POST"])

@@ -185,6 +185,7 @@ Python 가상환경을 설정한 후 다음 명령어를 실행하세요:
 
 ```bash
 pip install -r requirements.txt
+```
 ---
 추가로 원하시면 `python -m venv .venv` 등 가상환경 세팅부터 설치까지 전체 셋업 예시도 넣어드릴 수 있습니다. 필요하면 알려주세요.
 ---

@@ -1,14 +1,19 @@
-from flask import Flask, request, jsonify, render_template 
+from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import os
 import importlib.util
+from sentence_transformers import CrossEncoder
+import csv
+
+# 🔹 전처리 함수 불러오기
+from app.utils import preprocessing
 
 # Flask 앱 생성
 app = Flask(__name__)
 
 # 파일 업로드 디렉토리 설정
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # 폴더가 없으면 생성
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # 모델 이름과 해당 Python 파일 매핑
 model_map = {
@@ -17,12 +22,15 @@ model_map = {
     "KoreALBERT": "models/KoreALBERT.py"
 }
 
+# 🔹 Reranker 모델 불러오기
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 # 🔹 메인 페이지 요청 시 HTML 반환
 @app.route("/")
 def serve_html():
-    return render_template("main.html") # templates 폴더에서 main.html 자동 로드
+    return render_template("main.html")
 
-# 🔹 POST 요청 처리 (질문, 모델, 파일 받기)
+# 🔹 질문 처리
 @app.route("/ask", methods=["POST"])
 def ask():
     question = request.form.get("question", "")
@@ -46,16 +54,31 @@ def ask():
         uploaded_file.save(file_path)
 
     try:
-        # 모델 파일 동적 로딩
+        # ✅ 형태소 기반 키워드 추출
+        clean_q = preprocessing.clean_question(question)
+        morph_keywords = preprocessing.extract_keywords_morph(clean_q)
+        keyword_info = f"[🔍 주요 키워드]: {', '.join(morph_keywords)}"
+
+        # 모델 모듈 로딩
         spec = importlib.util.spec_from_file_location("model_module", model_file)
         model_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(model_module)
 
-        # run_model 또는 smart_legal_chat 함수 호출
-        if hasattr(model_module, "run_model"):
+        if hasattr(model_module, "smart_legal_chat"):
+            results = model_module.search_similar_questions(question, top_k=5)
+            if results:
+                rerank_input = [[question, r[0]] for r in results]
+                scores = reranker.predict(rerank_input)
+                best_idx = scores.argmax()
+                best_question, best_answer = results[best_idx]
+
+                prompt = f"{keyword_info}\n\n사용자 질문: {question}\n\n관련된 기존 질문: {best_question}\n\n기존 답변: {best_answer}\n\n이 내용을 참고하여 사용자 질문에 대해 자세히 설명해주세요."
+                answer = model_module.ask_exaone(prompt)
+            else:
+                answer = model_module.smart_legal_chat(question)
+
+        elif hasattr(model_module, "run_model"):
             answer = model_module.run_model(question, file_path)
-        elif hasattr(model_module, "smart_legal_chat"):
-            answer = model_module.smart_legal_chat(question)
         else:
             return jsonify({"answer": f"모델에 실행 가능한 함수가 없습니다."}), 500
 
@@ -63,6 +86,26 @@ def ask():
 
     except Exception as e:
         return jsonify({"answer": f"모델 실행 중 오류 발생: {str(e)}"}), 500
+
+# 🔹 피드백 저장
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    data = request.get_json()
+    question = data.get("question", "")
+    model = data.get("model", "")
+    answer = data.get("answer", "")
+    feedback = data.get("feedback", "")
+
+    feedback_file = "feedback_log.csv"
+    is_new_file = not os.path.exists(feedback_file)
+
+    with open(feedback_file, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new_file:
+            writer.writerow(["model", "question", "answer", "feedback"])
+        writer.writerow([model, question, answer, feedback])
+
+    return jsonify({"status": "success"})
 
 # 🔹 서버 실행
 if __name__ == "__main__":

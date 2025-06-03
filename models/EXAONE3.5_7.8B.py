@@ -144,12 +144,16 @@ def smart_legal_chat(user_input):
     if rdf_info:
         return f"RDF 기본 관련 정보:\n{rdf_info}"
 
-    top_qas = search_similar_questions(user_input, top_k=5)
+    cleaned = clean_question(user_input)
+    keywords = extract_keywords_morph(cleaned)
+    keyword_info = ", ".join(keywords)
+
+    top_qas = search_similar_questions(cleaned, top_k=5)
     if top_qas:
         retrieved_q, retrieved_a = top_qas[0]
-        prompt = f"사용자 질문: {user_input}\n\n기존 질문: {retrieved_q}\n\n기존 답변: {retrieved_a}\n\n이 내용을 참고해서 자세히 설명해주세요."
+        prompt = f"사용자 질문: {cleaned}\n\n키워드: {keyword_info}\n\n기존 질문: {retrieved_q}\n\n기존 답변: {retrieved_a}\n\n이 내용을 참고해서 자세히 설명해주세요."
     else:
-        prompt = f"{user_input}에 대해 자세히 설명해주세요."
+        prompt = f"{cleaned}에 대해 자세히 설명해주세요."
 
     return ask_exaone(prompt)
 

@@ -58,25 +58,7 @@ def extract_triples(graphs):
             triples.append({"subject": str(s), "predicate": str(p), "object": str(o)})
     return pd.DataFrame(triples)
 
-def extract_qa_from_label_json(folder_path):
-    qa_data = []
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith(".json"):
-                try:
-                    with open(os.path.join(root, file), encoding="utf-8") as f:
-                        content = json.load(f)
-                        if isinstance(content, dict):
-                            q = content.get("질문") or content.get("question")
-                            a = content.get("답변") or content.get("answer")
-                            if q and a:
-                                qa_data.append({"question": q, "answer": a})
-                except:
-                    pass
-    return pd.DataFrame(qa_data)
-
 # 4. 데이터 로딩
-law_qa_df = extract_qa_from_label_json(folders["relationship_json"])
 law_triple_df = extract_triples(load_rdf_files(folders["ontology_nt"]))
 terms_dict = {
     item["용어"]: item["정의"] for item in load_json_files(folders["terms_json"])

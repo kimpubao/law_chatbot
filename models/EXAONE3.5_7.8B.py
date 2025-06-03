@@ -1,4 +1,3 @@
-# app/utils/preprocessing.py
 import os
 import json
 import pandas as pd
@@ -9,7 +8,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import re
 import unicodedata
-from typing import Optional
 from konlpy.tag import Okt
 
 # 1. 경로 정의 및 폴더 구조 설정
@@ -64,18 +62,21 @@ terms_dict = {
     item["용어"]: item["정의"] for item in load_json_files(folders["terms_json"])
     if isinstance(item, dict) and "용어" in item and "정의" in item
 }
+law_qa_df = pd.DataFrame(columns=["question", "answer"])  # 빈 QA 데이터프레임
 
 # 5. 임베딩 및 검색기 생성
 embedder = SentenceTransformer("snunlp/KR-SBERT-V40K-klueNLI-augSTS")
-corpus = law_qa_df["question"].tolist()
-corpus_embeddings = embedder.encode(corpus, convert_to_numpy=True)
-index = faiss.IndexFlatL2(corpus_embeddings.shape[1])
-index.add(corpus_embeddings)
+corpus = law_qa_df["question"].tolist() if not law_qa_df.empty else []
+corpus_embeddings = embedder.encode(corpus, convert_to_numpy=True) if corpus else None
+index = faiss.IndexFlatL2(embedder.get_sentence_embedding_dimension()) if corpus else None
+if corpus_embeddings is not None:
+    index.add(corpus_embeddings)
 
-# CrossEncoder reranker
 reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
 def search_similar_questions(user_question, top_k=5):
+    if law_qa_df.empty or index is None:
+        return []
     query_embedding = embedder.encode(user_question, convert_to_numpy=True)
     D, I = index.search(query_embedding.reshape(1, -1), top_k)
     candidates = [(law_qa_df.iloc[i]["question"], law_qa_df.iloc[i]["answer"]) for i in I[0]]
@@ -99,7 +100,6 @@ def ask_exaone(prompt, max_new_tokens=256):
     return tokenizer.decode(output[0], skip_special_tokens=True).replace(prompt, "").strip()
 
 # 7. 보조 응답
-
 def lookup_legal_term_definition(user_input):
     for term in terms_dict:
         if term in user_input:
@@ -116,7 +116,6 @@ def search_rdf_triple(user_input):
     return "\n".join(results) if results else None
 
 # 8. 통합 응답
-
 def smart_legal_chat(user_input):
     term_def = lookup_legal_term_definition(user_input)
     if term_def:
@@ -140,7 +139,6 @@ def smart_legal_chat(user_input):
     return ask_exaone(prompt)
 
 # 9. Feedback 저장
-
 def save_feedback(user_question, model_answer, user_feedback):
     log = pd.DataFrame([{
         "question": user_question,
@@ -154,7 +152,6 @@ def save_feedback(user_question, model_answer, user_feedback):
         log.to_csv(folders["feedback_log"], index=False)
 
 # 10. 텍스트 전처리 및 형태소 분석 기반 키워드 추출
-
 def clean_question(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"[\t\n\r]+", " ", text)

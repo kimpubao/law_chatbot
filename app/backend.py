@@ -6,7 +6,7 @@ from sentence_transformers import CrossEncoder
 import csv
 
 # 🔹 전처리 함수 불러오기
-from app.utills import preprocessing
+from app.utils import preprocessing
 
 # Flask 앱 생성
 app = Flask(__name__)

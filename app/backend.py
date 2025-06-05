@@ -9,7 +9,7 @@ import csv
 from app.utils import preprocessing
 
 # Flask 앱 생성
-app = Flask(__name__)
+app = Flask(__name__, template_folder="../templates")
 
 # 파일 업로드 디렉토리 설정
 UPLOAD_FOLDER = "uploads"

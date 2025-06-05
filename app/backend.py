@@ -4,6 +4,7 @@ import os
 import importlib.util
 from sentence_transformers import CrossEncoder
 import csv
+import traceback
 
 # 허깅 페이스스
 import logging
@@ -89,6 +90,7 @@ def ask():
         return jsonify({"answer": answer})
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"answer": f"모델 실행 중 오류 발생: {str(e)}"}), 500
 
 # 🔹 피드백 저장

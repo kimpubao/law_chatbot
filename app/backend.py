@@ -5,6 +5,10 @@ import importlib.util
 from sentence_transformers import CrossEncoder
 import csv
 
+# 허깅 페이스스
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 # 🔹 전처리 함수 불러오기
 from app.utils import preprocessing
 

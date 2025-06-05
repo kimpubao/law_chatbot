@@ -86,16 +86,6 @@ def search_similar_questions(user_question, top_k=5):
 
 # 6. 모델 로딩
 model_name = "LGAI-EXAONE/EXAONE-3.5-7.8B-instruct"
-# 이전 코드(에러)
-# tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-# model = AutoModelForCausalLM.from_pretrained(
-#     model_name,
-#     device_map="auto",
-#     torch_dtype=torch.float16,
-#     trust_remote_code=True
-# )
-
-# 수정 후 코드
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,

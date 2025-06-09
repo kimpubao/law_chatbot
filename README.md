@@ -130,10 +130,9 @@ law_chatbot/
 │     └── __init__.py
 │
 ├── models/ ← 모델별 실행 로직 분리
-│ ├── model_KoAlpaca7B.py
-│ ├── model_KoAlpaca12B.py
-│ ├── model_Llama3.py
-│ └── model_Mistral.py
+│ ├── EXAONE3.5_7.8B.py
+│ ├── KLUE_RoBERTa.py
+│ └── KoreALBERT.py
 │
 ├── templates/ ← HTML 기반 UI (Flask용)
 │   └── main.html
@@ -141,7 +140,7 @@ law_chatbot/
 ├── static/ ← 구조도, 출력 이미지 등 정적 파일
 │   └── RAG_architecture.png
 │
-├── uploads/ ← (예시 전용)사용자 업로드 파일 저장소
+├── uploads/ ← 사용자 업로드 파일 저장소
 │
 ├── data/ ← (예시 전용) 테스트용 데이터셋
 │   └── sample_dataset.json ← 실제 대용량은 외장하드에 있음

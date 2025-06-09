@@ -85,19 +85,38 @@ def search_similar_questions(user_question, top_k=5):
     return [pair[0] for pair in sorted_pairs]
 
 # 6. 모델 로딩
-model_name = "LGAI-EXAONE/EXAONE-3.5-7.8B-instruct"
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+# model_name = "LGAI-EXAONE/EXAONE-3.5-7.8B-instruct"
+# tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+# model = AutoModelForCausalLM.from_pretrained(
+#     model_name,
+#     device_map="auto",
+#     torch_dtype=torch.float16,
+#     trust_remote_code=True
+# )
+
+# def ask_exaone(prompt, max_new_tokens=256):
+#     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+#     output = model.generate(input_ids, max_new_tokens=max_new_tokens, do_sample=True, top_p=0.9, temperature=0.8)
+#     return tokenizer.decode(output[0], skip_special_tokens=True).replace(prompt, "").strip()
+
+
+
+model_path = "EXAONE-3.5-7.8B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+
+# max_memory 해결 1
 model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    device_map="auto",
+    model_path,
+    trust_remote_code=True,
     torch_dtype=torch.float16,
-    trust_remote_code=True
+    device_map="auto"
 )
 
-def ask_exaone(prompt, max_new_tokens=256):
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-    output = model.generate(input_ids, max_new_tokens=max_new_tokens, do_sample=True, top_p=0.9, temperature=0.8)
-    return tokenizer.decode(output[0], skip_special_tokens=True).replace(prompt, "").strip()
+# max_memory 해결 2
+def ask_exaone(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    output = model.generate(**inputs, max_new_tokens=512)
+    return tokenizer.decode(output[0], skip_special_tokens=True)
 
 # 7. 보조 응답
 def lookup_legal_term_definition(user_input):

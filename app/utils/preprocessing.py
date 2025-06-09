@@ -15,13 +15,13 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_path)))  
 model_dir = os.path.join(project_root, "EXAONE-3.5-7.8B-Instruct")  # 모델 경로
 
 # ✅ 모델 로딩
-tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(
-    model_dir,
-    device_map="auto",
-    torch_dtype=torch.float16,
-    trust_remote_code=True
-)
+# tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+# model = AutoModelForCausalLM.from_pretrained(
+#     model_dir,
+#     device_map="auto",
+#     torch_dtype=torch.float16,
+#     trust_remote_code=True
+# )
 
 # ✅ 텍스트 전처리
 def clean_question(text: str) -> str:

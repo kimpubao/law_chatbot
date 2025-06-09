@@ -85,15 +85,17 @@ def search_similar_questions(user_question, top_k=5):
     return [pair[0] for pair in sorted_pairs]
 
 # 6. 모델 로딩
-model_path = "EXAONE-3.5-7.8B-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(current_dir, "..", "EXAONE-3.5-7.8B-Instruct")
+model_path = os.path.abspath(model_path)  # 정규화
 
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     trust_remote_code=True,
     torch_dtype=torch.float16,
     device_map="auto",
-    offload_folder="offload_folder",
+    offload_folder="offload_folder",  # offload 폴더는 law_chatbot 루트에 있어야 함
     low_cpu_mem_usage=True
 )
 

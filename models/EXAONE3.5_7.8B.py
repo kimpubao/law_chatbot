@@ -1,10 +1,15 @@
+# ⚠️ [변경 내역]
+# 기존: EXAONE-3.5-7.8B-Instruct 사용
+# 변경: EXAONE-3.5-2.4B-Instruct 사용 (경량 모델로 메모리 및 속도 최적화 목적)
+# 변경일: 2025-06-10
+
 import os
 import json
 import pandas as pd
 from rdflib import Graph
 from sentence_transformers import SentenceTransformer, CrossEncoder
 import faiss
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 import re
 import unicodedata
@@ -86,23 +91,48 @@ def search_similar_questions(user_question, top_k=5):
 
 # 6. 모델 로딩
 current_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(current_dir, "..", "EXAONE-3.5-7.8B-Instruct")
+model_path = os.path.join(current_dir, "..", "EXAONE-3.5-2.4B-Instruct")
 model_path = os.path.abspath(model_path)  # 정규화
+
+# 8bit 양자화
+bnb_config = BitsAndBytesConfig(
+    load_in_8bit=True,
+    llm_int8_threshold=6.0,
+    llm_int8_skip_modules=None,
+    llm_int8_enable_fp32_cpu_offload=True
+)
 
 tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     trust_remote_code=True,
-    torch_dtype=torch.float16,
-    device_map="auto",
-    offload_folder="offload_folder",  # offload 폴더는 law_chatbot 루트에 있어야 함
-    low_cpu_mem_usage=True
+    quantization_config=bnb_config,
+    device_map="auto"  # 자동으로 CPU/GPU 배분
 )
 
 def ask_exaone(prompt):
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    output = model.generate(**inputs, max_new_tokens=512)
-    return tokenizer.decode(output[0], skip_special_tokens=True)
+
+    # END 토큰 ID 가져오기
+    end_token_id = tokenizer.eos_token_id or tokenizer.convert_tokens_to_ids("</s>")
+
+    output = model.generate(
+        **inputs,
+        max_new_tokens=512,
+        eos_token_id=end_token_id,  # 종료 조건
+        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+        do_sample=True,
+        temperature=0.8,
+        top_p=0.9
+    )
+
+    response = tokenizer.decode(output[0], skip_special_tokens=True)
+
+    # 프롬프트 제거된 순수 응답만 추출
+    if prompt in response:
+        response = response.replace(prompt, "").strip()
+    return response
+
 
 # 7. 보조 응답
 def lookup_legal_term_definition(user_input):

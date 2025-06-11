@@ -92,8 +92,8 @@ def search_similar_questions(user_question, top_k=5):
 
 # 6. 모델 로딩
 current_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(current_dir, "..", "EXAONE-3.5-2.4B-Instruct")
-model_path = os.path.abspath(model_path)  # 정규화
+model_path = "LGAI-EXAONE/EXAONE-3.5-2.4B-instruct" 
+
 
 # 8bit 양자화
 bnb_config = BitsAndBytesConfig(
@@ -119,12 +119,13 @@ def ask_exaone(prompt):
 
     output = model.generate(
         **inputs,
-        max_new_tokens=512,
+        max_new_tokens=2048,
         eos_token_id=end_token_id,  # 종료 조건
         pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
         do_sample=True,
         temperature=0.8,
-        top_p=0.9
+        top_p=0.9,
+        repetition_penalty=1.1 # 중복 방지
     )
 
     response = tokenizer.decode(output[0], skip_special_tokens=True)

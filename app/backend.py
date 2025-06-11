@@ -5,6 +5,14 @@ import importlib.util
 from sentence_transformers import CrossEncoder
 import csv
 import traceback
+import sys
+
+# ✅ transformers_modules 경로 추가
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(current_dir))
+custom_module_path = os.path.join(parent_dir, "transformers_modules")
+if custom_module_path not in sys.path:
+    sys.path.append(custom_module_path)
 
 # 허깅 페이스스
 import logging
@@ -56,7 +64,7 @@ def ask():
     if uploaded_file:
         filename = secure_filename(uploaded_file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        uploaded_file.save(file_path)
+        uploaded_file.save(file_path)\
 
     try:
         # ✅ 형태소 기반 키워드 추출

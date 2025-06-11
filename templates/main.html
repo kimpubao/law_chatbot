@@ -237,8 +237,8 @@
       })
       .then(res => res.json())
       .then(data => {
-        typeMessage(chatbox, `${model} 답변 : ${data.answer}`, "bot-message");
-
+        appendMessage(`${model} 답변 : ${data.answer}`, "bot-message");
+        
         if (data.image) {
           const img = document.createElement("img");
           img.src = data.image;
@@ -246,9 +246,10 @@
           img.style.marginTop = "10px";
           chatbox.appendChild(img);
         }
-
+        
         chatbox.scrollTop = chatbox.scrollHeight;
       })
+
       .catch(() => {
         appendMessage("<b>오류:</b> 서버 연결 실패", "bot-message");
         chatbox.lastChild.style.color = "red";

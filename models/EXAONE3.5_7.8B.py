@@ -14,6 +14,7 @@ import torch
 import re
 import unicodedata
 from konlpy.tag import Okt
+import markdown
 
 # 1. 경로 정의 및 폴더 구조 설정
 base_path = "/mnt/e/chatbot_project_data/law_chatbot_dataset"
@@ -131,6 +132,8 @@ def ask_exaone(prompt):
     # 프롬프트 제거된 순수 응답만 추출
     if prompt in response:
         response = response.replace(prompt, "").strip()
+        # markdown을 html로 렌더링
+        response = markdown.markdown(response)
     return response
 
 

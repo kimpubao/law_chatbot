@@ -145,6 +145,13 @@ law_chatbot/
 ├── data/ ← (예시 전용) 테스트용 데이터셋
 │   └── sample_dataset.json ← 실제 대용량은 외장하드에 있음
 │
+├── transformers_modules/
+│   └── EXAONE_3/
+│       └──__init__.py
+│       └── EXAONE-3.5-2.4B-Instruct/
+│           ├── __init__.py
+│           ├── configuration_exaone.py
+│           └── modeling_exaone.py
 ├── README.md
 ├── requirements.txt
 └── .gitignore

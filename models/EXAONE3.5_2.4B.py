@@ -148,39 +148,45 @@ terms_dict = {
 }
 law_triple_df = extract_triples(load_rdf_files(folders["ontology_nt"]))
 
-# 7. EXAONE 모델 로딩
+# 7. EXAONE 모델 로딩 (전역 캐싱 구조로 변경)
 model_path = "LGAI-EXAONE/EXAONE-3.5-2.4B-instruct"
-bnb_config = BitsAndBytesConfig(load_in_8bit=True,llm_int8_enable_fp32_cpu_offload=True)
+bnb_config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_enable_fp32_cpu_offload=True)
 
-# 전역에서 단 1회 로딩
-tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(
-    model_path,
-    trust_remote_code=True,
-    quantization_config=bnb_config,
-    device_map="auto"
-)
+# 모델 & 토크나이저 전역 변수
+global_tokenizer = None
+global_model = None
 
-# 7-1. 모델 응답 함수
+# 7-1. 모델 로딩 함수 (1회만 실행)
+def load_model_once():
+    global global_tokenizer, global_model
+    if global_tokenizer is None or global_model is None:
+        print("🔄 모델 최초 로딩 중...")
+        global_tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        global_model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            trust_remote_code=True,
+            quantization_config=bnb_config,
+            device_map="auto"
+        )
+    return global_tokenizer, global_model
+
+# 7-2. 모델 응답 함수
 def ask_exaone(prompt):
-    # 입력 토큰화 및 모델에 전달
+    tokenizer, model = load_model_once()
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    
-    # 텍스트 생성
     output = model.generate(
         **inputs,
         max_new_tokens=1024,
-        do_sample=False,  # 🔹 샘플링 비활성화 → 항상 같은 입력에 대해 동일한 출력 (빠르고 일관된 응답)
-        repetition_penalty=1.1,  # 🔹 반복 방지 페널티 → 같은 단어/문장이 반복되지 않도록 함
-        early_stopping=True,  # 🔹 EOS 토큰이 나오면 즉시 생성 중단 (불필요하게 긴 응답 방지)
-        eos_token_id=tokenizer.eos_token_id,  # 🔹 문장 종료 토큰 (이 토큰이 생성되면 종료)
-        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id  # 🔹 패딩 토큰 설정 (없으면 eos_token으로 대체)
+        do_sample=False,
+        repetition_penalty=1.1,
+        early_stopping=True,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
     )
-    
-    # 응답 디코딩 및 마크다운 변환 (표 렌더링 포함)
     response = tokenizer.decode(output[0], skip_special_tokens=True)
     cleaned = response.replace(prompt, "").strip()
     return markdown.markdown(cleaned, extensions=['markdown.extensions.tables'])
+
 
 # 8. 유사 질문 검색 (LangChain + 재랭커)
 def retrieve_similar_qa(user_question, top_k=5):

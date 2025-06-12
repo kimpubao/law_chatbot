@@ -30,7 +30,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # 모델 이름과 해당 Python 파일 매핑
 model_map = {
-    "EXAONE3.5_7.8B": "models/EXAONE3.5_7.8B.py",
+    "EXAONE3.5_2.4B": "models/EXAONE3.5_2.4B.py",
     "KLUE_RoBERTa": "models/KLUE_RoBERTa.py",
     "KoreALBERT": "models/KoreALBERT.py"
 }

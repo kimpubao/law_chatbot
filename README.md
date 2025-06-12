@@ -67,10 +67,9 @@
 - Hugging Face: https://huggingface.co/EleutherAI/polyglot-ko-1.3b
 
 
-### minpeter/tiny-ko-sft
-- Hugging Face: minpeter/tiny-ko-sft
-- 논문: 해당 모델은 파인튜닝 결과물로, 원 모델 기반 논문 참조 필요
-  - 기반 모델: TinyLlama
+### skt/kogpt2-base-v2
+- Hugging Face: https://huggingface.co/skt/kogpt2-base-v2
+- 논문: https://arxiv.org/abs/2010.06090
 ---
 
 ## 🗃️ 활용 데이터셋 (AI Hub)

@@ -35,13 +35,12 @@
     #chatbox {
       flex: 1;
       padding: 10px;
-      border-top: 1px solid #ccc;
-      border-bottom: 1px solid #ccc;
       overflow-y: auto;
       background-color: #f9f9f9;
       white-space: pre-wrap;
       display: flex;
       flex-direction: column;
+      min-height: 0;
     }
 
     .message {
@@ -63,6 +62,24 @@
       background-color: #e9e9e9;
       align-self: flex-start;
       text-align: left;
+    }
+
+    .typing-indicator {
+      display: inline-block;
+      background: linear-gradient(90deg, #fff 25%, #ccc 50%, #fff 75%);
+      background-size: 200% auto;
+      animation: shimmer 1.5s infinite;
+      color: #000;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-weight: bold;
+      align-self: flex-start;
+      max-width: fit-content;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
 
     footer {
@@ -185,29 +202,12 @@
       fileInput.click();
     });
 
-    function typeMessage(parent, text, className, delay = 30) {
-      const div = document.createElement("div");
-      div.className = className + " message";
-      parent.appendChild(div);
-
-      let i = 0;
-      function typing() {
-        if (i < text.length) {
-          div.innerHTML += text[i++];
-          setTimeout(typing, delay);
-        } else {
-          chatbox.scrollTop = chatbox.scrollHeight;
-        }
-      }
-      typing();
-    }
-
     function appendMessage(text, className) {
       const div = document.createElement("div");
       div.className = className + " message";
       div.innerHTML = text;
       chatbox.appendChild(div);
-      chatbox.scrollTop = chatbox.scrollHeight;
+      div.scrollIntoView({ behavior: "smooth", block: "end" });
     }
 
     function sendMessage() {
@@ -216,20 +216,19 @@
 
       if (!text && !selectedFile) return;
 
-      if (text) {
-        appendMessage(`${text}`, "user-message");
-      }
+      if (text) appendMessage(text, "user-message");
+      if (selectedFile) appendMessage(`📎 파일 선택됨: ${selectedFile.name}`, "bot-message");
 
-      if (selectedFile) {
-        appendMessage(`📎 파일 선택됨: ${selectedFile.name}`, "bot-message");
-      }
+      const loading = document.createElement("div");
+      loading.className = "typing-indicator";
+      loading.innerText = "답변을 생성하고 있습니다.";
+      chatbox.appendChild(loading);
+      loading.scrollIntoView({ behavior: "smooth", block: "end" });
 
       const formData = new FormData();
       formData.append("question", text);
       formData.append("model", model);
-      if (selectedFile) {
-        formData.append("file", selectedFile);
-      }
+      if (selectedFile) formData.append("file", selectedFile);
 
       fetch("http://127.0.0.1:5000/ask", {
         method: "POST",
@@ -237,8 +236,8 @@
       })
       .then(res => res.json())
       .then(data => {
+        loading.remove();
         appendMessage(`${model} 답변 : ${data.answer}`, "bot-message");
-        
         if (data.image) {
           const img = document.createElement("img");
           img.src = data.image;
@@ -246,17 +245,15 @@
           img.style.marginTop = "10px";
           chatbox.appendChild(img);
         }
-        
-        chatbox.scrollTop = chatbox.scrollHeight;
       })
-
       .catch(() => {
+        loading.remove();
         appendMessage("<b>오류:</b> 서버 연결 실패", "bot-message");
-        chatbox.lastChild.style.color = "red";
       });
 
       textarea.value = "";
       removeFile();
+      chatbox.scrollTop = chatbox.scrollHeight;
     }
 
     sendBtn.addEventListener("click", sendMessage);
@@ -268,9 +265,8 @@
       }
     });
 
-    // 페이지 로드시 인삿말 타이핑 출력
     window.onload = function () {
-      typeMessage(chatbox, "안녕하세요! 법률 전문 상담 도우미입니다. 무엇을 도와드릴까요?", "bot-message");
+      appendMessage("안녕하세요! 법률 전문 상담 도우미입니다. 무엇을 도와드릴까요?", "bot-message");
     };
   </script>
 </body>

@@ -32,7 +32,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 model_map = {
     "EXAONE3.5_2.4B": "models/EXAONE3.5_2.4B.py",
     "kogpt2-base-v2": "models/kogpt2-base-v2.py",
-    "tiny-ko-sft": "models/tiny-ko-sft.py"
+    "polyglot_1.3b": "models/polyglot_1.3b.py"
 }
 
 # 🔹 Reranker 모델 불러오기

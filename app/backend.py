@@ -31,8 +31,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # 모델 이름과 해당 Python 파일 매핑
 model_map = {
     "EXAONE3.5_2.4B": "models/EXAONE3.5_2.4B.py",
-    "KcELECTRA-base": "models/KcELECTRA-base.py",
-    "klue_roberta_base": "models/klue_roberta_base.py"
+    "kogpt2-base-v2": "models/kogpt2-base-v2.py",
+    "tiny-ko-sft": "models/tiny-ko-sft.py"
 }
 
 # 🔹 Reranker 모델 불러오기

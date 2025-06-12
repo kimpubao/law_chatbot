@@ -59,15 +59,16 @@
 ---
 
 ## 🤖 사용 모델 소개 및 논문
-### EXAONE 3.5 7.8B  
-- Hugging Face: https://huggingface.co/LGAI-EXAONE/EXAONE-3.5-7.8B-instruct  
+### EXAONE 3.5 2.4B
+- Hugging Face: https://huggingface.co/LGAI-EXAONE/EXAONE-3.5-2.4B-instruct
 - 논문: https://arxiv.org/abs/2412.04862
-### KLUE-RoBERTa-base  
-- Hugging Face: https://huggingface.co/klue/roberta-base  
+
+### klue/roberta-base
+- Hugging Face: https://huggingface.co/klue/roberta-base
 - 논문: https://arxiv.org/abs/2105.09680
 
-### KoreALBERT (KcELECTRA-base)  
-- Hugging Face: https://huggingface.co/beomi/KcELECTRA-base  
+### beomi/KcELECTRA-base-v2022
+- Hugging Face: https://huggingface.co/beomi/KcELECTRA-base-v2022
 - 논문: https://arxiv.org/abs/2004.13922
 
 ---
@@ -131,8 +132,8 @@ law_chatbot/
 │
 ├── models/ ← 모델별 실행 로직 분리
 │ ├── EXAONE3.5_7.8B.py
-│ ├── KoAlpaca-7B-LoRA.py
-│ └── KoreALBERT.py
+│ ├── klue_roberta_base.py
+│ └── kc_electra_base_v2022.py
 │
 ├── templates/ ← HTML 기반 UI (Flask용)
 │   └── main.html
@@ -161,11 +162,12 @@ law_chatbot/
 ---
 ## 📊 모델별 성능 비교
 
-| 모델                   | 파라미터 수          | 응답 정확도            | 응답 속도        | 메모리 사용량 | 비고                  |
-| -------------------- | --------------- | ----------------- | ------------ | ------- | ------------------- |
-| **EXAONE 3.5 2.4B**  | 약 2.4B          | 중상 (실 사용 경험 기반)   | 보통 (8bit 기준) | 중간      | 지식문 침적화, 경량 버전      |
-| **KoAlpaca-7B-LoRA** | 약 7B (LoRA 경량화) | 중\~상 (대화·지시문에 강함) | 빠름           | 낮음\~중간  | LoRA 기반으로 성능 대비 효율적 |
-| **KoreALBERT**       | 약 13M           | 낮음\~중간 (경량 모델)    | 매우 빠름        | 매우 낮음   | 모바일/경량 환경 적합        |
+| 모델                           | 파라미터 수 | 응답 정확도          | 응답 속도        | 메모리 사용량 | 비고             |
+| ---------------------------- | ------ | --------------- | ------------ | ------- | -------------- |
+| **EXAONE 3.5 2.4B**          | 약 2.4B | 중상 (실 사용 경험 기반) | 보통 (8bit 기준) | 중간      | 지식문 침적화, 경량 버전 |
+| **klue\_roberta\_base**      | 약 110M | 중간 (공식 보고서 기반)  | 빠름           | 낮음      | 분류형 QA 적합      |
+| **kc\_electra\_base\_v2022** | 약 13M  | 낮음\~중간 (경량 모델)  | 매우 빠름        | 매우 낮음   | 모바일/경량 환경 적합   |
+
 
 
 

@@ -19,13 +19,9 @@ import unicodedata
 from konlpy.tag import Okt
 import markdown
 import logging
+import time
 
-# 로깅 기본 설정
-logging.basicConfig(
-    level=logging.INFO,  # 로그 레벨 (DEBUG, INFO, WARNING, ERROR, CRITICAL 중 선택 가능)
-    format="%(asctime)s [%(levelname)s] %(message)s",  # 로그 출력 형식
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # 1. 경로 설정
 base_path = "/mnt/e/chatbot_project_data/law_chatbot_dataset"
@@ -69,7 +65,7 @@ def extract_triples(graphs):
             triples.append({"subject": str(s), "predicate": str(p), "object": str(o)})
     return pd.DataFrame(triples)
 
-# 3. 조항 QA 추출 및 텍스트화
+# 3. QA 로딩
 def extract_qa_from_clause_json(folder_path):
     qa_pairs = []
     for root, _, files in os.walk(folder_path):
@@ -97,19 +93,7 @@ def map_answer_label(label):
     else:
         return "이 조항의 유불리는 명확하지 않습니다."
 
-# law_qa_df = pd.read_pickle("/mnt/e/chatbot_project_data/law_chatbot_dataset/law_qa_df.pkl")
-
-# 3-1. ✅ law_qa_df.pkl Fallback 로직 (자동 생성 및 저장 가능)
-# - [자동화] law_qa_df.pkl 파일이 없으면 JSON에서 QA 추출 후 저장 옵션 제공
-# - 파일이 있으면 바로 로드하여 속도 향상
-# - 파일이 없을 경우 fallback으로 JSON 파싱 후 저장 여부 선택
-
-# 설정값: 자동 저장 여부
-AUTO_SAVE = True  # True면 자동 저장, False면 사용자에게 물어봄
-
-# law_qa_df.pkl 경로
 qa_pickle_path = os.path.join(base_path, "law_qa_df.pkl")
-
 if os.path.exists(qa_pickle_path):
     print("✅ law_qa_df.pkl 로드 중...")
     law_qa_df = pd.read_pickle(qa_pickle_path)
@@ -117,30 +101,18 @@ else:
     print("⚠️ law_qa_df.pkl 없음 → JSON에서 추출합니다.")
     law_qa_df = extract_qa_from_clause_json(qa_data_root)
     law_qa_df["answer"] = law_qa_df["answer"].apply(map_answer_label)
+    law_qa_df.to_pickle(qa_pickle_path)
+    print("✅ 자동 저장 완료:", qa_pickle_path)
 
-    if AUTO_SAVE:
-        law_qa_df.to_pickle(qa_pickle_path)
-        print("✅ 자동 저장 완료:", qa_pickle_path)
-    else:
-        save = input("❓ 추출된 QA를 pkl로 저장할까요? (y/n): ")
-        if save.lower() == "y":
-            law_qa_df.to_pickle(qa_pickle_path)
-            print("✅ 저장 완료:", qa_pickle_path)
-
-
-# 4. LangChain 기반 문서화 및 벡터 DB 생성
-documents = [
-    Document(page_content=f"{row['question']}\n{row['answer']}")
-    for _, row in law_qa_df.iterrows()
-]
-
+# 4. 벡터 DB
+documents = [Document(page_content=f"{row['question']}\n{row['answer']}") for _, row in law_qa_df.iterrows()]
 embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
 vectorstore = LangchainFAISS.from_documents(documents, embedding_model)
 
 # 5. 재랭커
 reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-# 6. RDF/용어 데이터
+# 6. 용어 및 삼중항
 terms_dict = {
     item["용어"]: item["정의"]
     for item in load_json_files(folders["terms_json"])
@@ -148,66 +120,67 @@ terms_dict = {
 }
 law_triple_df = extract_triples(load_rdf_files(folders["ontology_nt"]))
 
-# 7. EXAONE 모델 로딩 (전역 캐싱 구조로 변경)
-model_path = "LGAI-EXAONE/EXAONE-3.5-2.4B-instruct"
-bnb_config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_enable_fp32_cpu_offload=True)
+# 7. EXAONE 모델 로딩 (4bit 최적화 + GPU 고정)
+model_path = "./EXAONE-3.5-2.4B-Instruct"
 
-# 모델 & 토크나이저 전역 변수
-global_tokenizer = None
-global_model = None
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.float16
+)
 
-# 7-1. 모델 로딩 함수 (1회만 실행)
+global_tokenizer = AutoTokenizer.from_pretrained(
+    model_path, 
+    trust_remote_code=True
+)
+
+global_model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    trust_remote_code=True,
+    quantization_config=bnb_config,
+    device_map="cuda"
+)
+
+
 def load_model_once():
     global global_tokenizer, global_model
     if global_tokenizer is None or global_model is None:
-        print("🔄 모델 최초 로딩 중...")
-        global_tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        print("🔄 EXAONE 모델 로컬에서 로딩 중...")
+        global_tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=False
+        )
         global_model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            trust_remote_code=True,
+            trust_remote_code=False,
             quantization_config=bnb_config,
-            device_map="auto"
+            device_map="cuda"
         )
+        print("✅ 모델 디바이스:", global_model.device)
     return global_tokenizer, global_model
 
-# 7-2. 모델 응답 함수
-# def ask_exaone(prompt):
-#     tokenizer, model = load_model_once()
-#     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-#     output = model.generate(
-#         **inputs,
-#         max_new_tokens=1024,
-#         do_sample=False,
-#         repetition_penalty=1.1,
-#         early_stopping=True,
-#         eos_token_id=tokenizer.eos_token_id,
-#         pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
-#     )
-#     response = tokenizer.decode(output[0], skip_special_tokens=True)
-#     cleaned = response.replace(prompt, "").strip()
-#     return markdown.markdown(cleaned, extensions=['markdown.extensions.tables'])
 
 def ask_exaone(prompt):
     tokenizer, model = load_model_once()
     inputs = tokenizer(prompt[:1500], return_tensors="pt").to(model.device)
 
-    with torch.no_grad():  # ← 그래디언트 꺼서 속도 및 자원 최적화
+    start = time.time()
+    with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=768,  # ← 답변 길이 절반으로 제한
+            max_new_tokens=768,
             do_sample=False,
             repetition_penalty=1.1,
             early_stopping=True,
             eos_token_id=tokenizer.eos_token_id,
             pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
         )
+    end = time.time()
+    print(f"⏱ 모델 응답 시간: {end - start:.2f}초")
 
     result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return markdown.markdown(result.replace(prompt, "").strip(), extensions=['markdown.extensions.tables'])
+    return markdown.markdown(result.replace(prompt.strip(), "").strip(), extensions=['markdown.extensions.tables'])
 
-
-
-# 8. 유사 질문 검색 (LangChain + 재랭커)
+# 8. 유사 질문 검색
 def retrieve_similar_qa(user_question, top_k=5):
     retrieved = vectorstore.similarity_search(user_question, k=top_k)
     qa_pairs = []
@@ -219,11 +192,6 @@ def retrieve_similar_qa(user_question, top_k=5):
         return []
     scores = reranker.predict([[user_question, q] for q, _ in qa_pairs])
     return [pair for pair, _ in sorted(zip(qa_pairs, scores), key=lambda x: x[1], reverse=True)]
-
-# 8-1. 외부 모듈에서 사용할 수 있도록 wrapper 함수 제공
-def search_similar_questions(user_question, top_k=5):
-    logging.info(f"유사 질문 검색 시작: '{user_question}'")
-    return retrieve_similar_qa(user_question, top_k=top_k)
 
 # 9. 보조 지식 응답
 def lookup_legal_term_definition(user_input):
@@ -241,7 +209,7 @@ def search_rdf_triple(user_input):
             break
     return "\n".join(results) if results else None
 
-# 10. 전처리 + 키워드 추출
+# 10. 전처리 및 키워드
 def clean_question(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"[\t\n\r]+", " ", text)
@@ -257,7 +225,7 @@ def extract_keywords_morph(text: str, top_k: int = 5) -> list[str]:
     sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)
     return [w for w, _ in sorted_words[:top_k]]
 
-# 11. 최종 통합 챗봇 함수
+# 11. 통합 챗봇 응답
 def smart_legal_chat(user_input):
     term_def = lookup_legal_term_definition(user_input)
     if term_def:
@@ -273,9 +241,15 @@ def smart_legal_chat(user_input):
 
     if top_qas:
         q, a = top_qas[0]
-        prompt = f"사용자 질문: {cleaned}\n\n키워드: {', '.join(keywords)}\n\n참고 질문: {q}\n\n참고 답변: {a}\n\n이 내용을 참고해 설명해주세요."
+        prompt = f"""질문: {cleaned}
+아래 내용을 참고하여 자연스럽게 답변해주세요:
+
+Q: {q}
+A: {a}
+
+답변:"""
     else:
-        prompt = f"{cleaned}에 대해 자세히 설명해주세요."
+        prompt = f"질문: {cleaned}\n답변:"
 
     return ask_exaone(prompt)
 

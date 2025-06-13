@@ -171,21 +171,40 @@ def load_model_once():
     return global_tokenizer, global_model
 
 # 7-2. 모델 응답 함수
+# def ask_exaone(prompt):
+#     tokenizer, model = load_model_once()
+#     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+#     output = model.generate(
+#         **inputs,
+#         max_new_tokens=1024,
+#         do_sample=False,
+#         repetition_penalty=1.1,
+#         early_stopping=True,
+#         eos_token_id=tokenizer.eos_token_id,
+#         pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+#     )
+#     response = tokenizer.decode(output[0], skip_special_tokens=True)
+#     cleaned = response.replace(prompt, "").strip()
+#     return markdown.markdown(cleaned, extensions=['markdown.extensions.tables'])
+
 def ask_exaone(prompt):
     tokenizer, model = load_model_once()
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    output = model.generate(
-        **inputs,
-        max_new_tokens=1024,
-        do_sample=False,
-        repetition_penalty=1.1,
-        early_stopping=True,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
-    )
-    response = tokenizer.decode(output[0], skip_special_tokens=True)
-    cleaned = response.replace(prompt, "").strip()
-    return markdown.markdown(cleaned, extensions=['markdown.extensions.tables'])
+    inputs = tokenizer(prompt[:1500], return_tensors="pt").to(model.device)
+
+    with torch.no_grad():  # ← 그래디언트 꺼서 속도 및 자원 최적화
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=768,  # ← 답변 길이 절반으로 제한
+            do_sample=False,
+            repetition_penalty=1.1,
+            early_stopping=True,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+        )
+
+    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return markdown.markdown(result.replace(prompt, "").strip(), extensions=['markdown.extensions.tables'])
+
 
 
 # 8. 유사 질문 검색 (LangChain + 재랭커)

@@ -13,6 +13,8 @@ import unicodedata
 from konlpy.tag import Okt
 import markdown
 import logging
+import time
+from functools import lru_cache
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -25,7 +27,8 @@ folders = {
     "feedback_log": os.path.join(base_path, "feedback_log.csv")
 }
 
-# 2. 데이터 로딩
+# 2. JSON / RDF 로딩
+
 def load_json_files(folder_path):
     data = []
     for root, _, files in os.walk(folder_path):
@@ -57,6 +60,8 @@ def extract_triples(graphs):
         for s, p, o in g:
             triples.append({"subject": str(s), "predicate": str(p), "object": str(o)})
     return pd.DataFrame(triples)
+
+# 3. QA 데이터 로딩
 
 def extract_qa_from_clause_json(folder_path):
     qa_pairs = []
@@ -93,16 +98,12 @@ else:
     law_qa_df["answer"] = law_qa_df["answer"].apply(map_answer_label)
     law_qa_df.to_pickle(qa_pickle_path)
 
-# 3. 벡터 DB 및 재랭커
-documents = [
-    Document(page_content=f"{row['question']}\n{row['answer']}")
-    for _, row in law_qa_df.iterrows()
-]
+documents = [Document(page_content=f"{row['question']}\n{row['answer']}") for _, row in law_qa_df.iterrows()]
 embedding_model = HuggingFaceEmbeddings(model_name="snunlp/KR-SBERT-V40K-klueNLI-augSTS")
 vectorstore = LangchainFAISS.from_documents(documents, embedding_model)
 reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-# 4. 용어사전 + RDF 삼중항
+# 4. 보조 지식
 terms_dict = {
     item["용어"]: item["정의"]
     for item in load_json_files(folders["terms_json"])
@@ -110,7 +111,7 @@ terms_dict = {
 }
 law_triple_df = extract_triples(load_rdf_files(folders["ontology_nt"]))
 
-# 5. Polyglot 모델 로딩
+# 5. 모델 로딩
 model_path = "EleutherAI/polyglot-ko-1.3b"
 global_tokenizer = None
 global_model = None
@@ -118,56 +119,44 @@ global_model = None
 def load_model_once():
     global global_tokenizer, global_model
     if global_tokenizer is None or global_model is None:
-        print("🔄 Polyglot 모델 최초 로딩 중...")
         global_tokenizer = AutoTokenizer.from_pretrained(model_path)
         global_model = AutoModelForCausalLM.from_pretrained(model_path)
-        global_model.to("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        global_model.to(device)
         global_model.eval()
-    return global_tokenizer, global_model
+        print(f"✅ Polyglot 모델 로딩 완료 (디바이스: {device})")
 
+# 6. 응답 생성
+@lru_cache(maxsize=128)
 def ask_polyglot(prompt):
-    tokenizer, model = load_model_once()
-    inputs = tokenizer(prompt[:1500], return_tensors="pt", truncation=True)
-
-    # ✅ token_type_ids 제거 (Polyglot에서 미지원)
+    load_model_once()
+    prompt = prompt[:1500]
+    inputs = global_tokenizer(prompt, return_tensors="pt", truncation=True).to(global_model.device)
     if "token_type_ids" in inputs:
         del inputs["token_type_ids"]
 
-    inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
+    start = time.time()
     with torch.no_grad():
-        outputs = model.generate(
+        outputs = global_model.generate(
             **inputs,
             max_new_tokens=768,
             do_sample=True,
-            temperature=0.7,
+            temperature=0.85,
             top_p=0.95,
-            eos_token_id=tokenizer.eos_token_id,
-            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+            repetition_penalty=1.1,
+            eos_token_id=global_tokenizer.eos_token_id,
+            pad_token_id=global_tokenizer.pad_token_id or global_tokenizer.eos_token_id
         )
+    end = time.time()
 
-    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    cleaned = result.replace(prompt, "").strip()
+    result = global_tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+    cleaned = result.replace(prompt.strip(), "").strip()
+    print(f"⏱ Polyglot 응답 시간: {end - start:.2f}초")
 
-    if not cleaned or len(cleaned) < 10:
-        return "⚠️ 답변을 생성하지 못했습니다. 질문을 조금 더 구체적으로 입력해 주세요."
-
-    return markdown.markdown(cleaned, extensions=["markdown.extensions.tables"])
-
-# 6. 검색 함수
-def retrieve_similar_qa(user_question, top_k=5):
-    retrieved = vectorstore.similarity_search(user_question, k=top_k)
-    qa_pairs = []
-    for doc in retrieved:
-        parts = doc.page_content.split("\n", 1)
-        if len(parts) == 2:
-            qa_pairs.append((parts[0], parts[1]))
-    if not qa_pairs:
-        return []
-    scores = reranker.predict([[user_question, q] for q, _ in qa_pairs])
-    return [pair for pair, _ in sorted(zip(qa_pairs, scores), key=lambda x: x[1], reverse=True)]
+    return markdown.markdown(cleaned if len(cleaned) >= 10 else "⚠️ 답변을 생성하지 못했습니다. 질문을 조금 더 구체적으로 입력해 주세요.", extensions=["markdown.extensions.tables"])
 
 # 7. 전처리 및 키워드
+
 def clean_question(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"[\t\n\r]+", " ", text)
@@ -183,7 +172,8 @@ def extract_keywords_morph(text: str, top_k: int = 5) -> list[str]:
     sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)
     return [w for w, _ in sorted_words[:top_k]]
 
-# 8. 법령 정의 + RDF 검색
+# 8. 보조 지식
+
 def lookup_legal_term_definition(user_input):
     for term in terms_dict:
         if term in user_input:
@@ -199,29 +189,54 @@ def search_rdf_triple(user_input):
             break
     return "\n".join(results) if results else None
 
-# 9. 메인 응답
-def smart_legal_chat(user_input):
-    term_def = lookup_legal_term_definition(user_input)
-    if term_def:
-        return term_def
-    rdf_info = search_rdf_triple(user_input)
-    if rdf_info:
-        return f"🔎 RDF 정보:\n{rdf_info}"
-    cleaned = clean_question(user_input)
-    keywords = extract_keywords_morph(cleaned)
-    top_qas = retrieve_similar_qa(cleaned, top_k=5)
-    if top_qas:
-        q, a = top_qas[0]
-        prompt = f"사용자 질문: {cleaned}\n\n키워드: {', '.join(keywords)}\n\n참고 질문: {q}\n\n참고 답변: {a}\n\n이 내용을 참고해 설명해주세요."
-    else:
-        prompt = f"{cleaned}에 대해 자세히 설명해주세요."
-    return ask_polyglot(prompt)
+# 9. 유사 질문 검색
 
-# 10. 외부 모듈 연동용 유사 질문 검색 함수
+def retrieve_similar_qa(user_question, top_k=5):
+    retrieved = vectorstore.similarity_search(user_question, k=top_k)
+    qa_pairs = []
+    for doc in retrieved:
+        parts = doc.page_content.split("\n", 1)
+        if len(parts) == 2:
+            qa_pairs.append((parts[0], parts[1]))
+    if not qa_pairs:
+        return []
+    scores = reranker.predict([[user_question, q] for q, _ in qa_pairs])
+    return [pair for pair, _ in sorted(zip(qa_pairs, scores), key=lambda x: x[1], reverse=True)]
+
 def search_similar_questions(user_question, top_k=5):
     return retrieve_similar_qa(user_question, top_k=top_k)
 
+# 10. 최종 응답
+
+def smart_legal_chat(user_input):
+    if "참고 질문" in user_input and "참고 답변" in user_input:
+        match = re.search(r"사용자 질문:\s*(.+?)\n", user_input)
+        question = match.group(1).strip() if match else user_input.strip()
+        simple_prompt = f"{question}\n관련 요건을 조목조목 자연스럽게 설명해줘."
+        return ask_polyglot(simple_prompt)
+
+    term_def = lookup_legal_term_definition(user_input)
+    if term_def:
+        return term_def
+
+    rdf_info = search_rdf_triple(user_input)
+    if rdf_info:
+        return f"🔎 RDF 정보:\n{rdf_info}"
+
+    cleaned = clean_question(user_input)
+    keywords = extract_keywords_morph(cleaned)
+    top_qas = retrieve_similar_qa(cleaned, top_k=5)
+
+    if top_qas:
+        q, a = top_qas[0]
+        prompt = f"질문: {cleaned}\n아래 내용을 참고하여 자연스럽게 요건을 설명해주세요:\nQ: {q}\nA: {a}\n답변:"
+    else:
+        prompt = f"{cleaned}\n관련 요건을 간결하고 조목조목 설명해주세요."
+
+    return ask_polyglot(prompt)
+
 # 11. 피드백 저장
+
 def save_feedback(user_question, model_answer, user_feedback):
     log = pd.DataFrame([{
         "question": user_question,

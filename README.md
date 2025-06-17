@@ -174,14 +174,15 @@ law_chatbot/
 └── .gitignore
 
 ```
-## 시연 영상
-### 🎬 EXAONE 시연 영상  
+## 🎬 시연 영상
+
+### EXAONE 시연  
 ![EXAONE 시연](./static/EXAONE_2.gif)
 
-### 🎬 KoGPT2 시연 영상  
+### KoGPT2 시연  
 ![KoGPT2 시연](./static/kogpt2_2.gif)
 
-### 🎬 Polyglot 시연 영상  
+### Polyglot 시연  
 ![Polyglot 시연](./static/polyglot_2.gif)
 
 ---

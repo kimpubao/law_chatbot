@@ -174,6 +174,31 @@ law_chatbot/
 └── .gitignore
 
 ```
+## 시연 영상
+### EXAONE 3.5 2.4B - 응답 시연
+
+<video width="100%" controls>
+  <source src="static/EXAONE_2.mp4" type="video/mp4">
+  브라우저가 EXAONE 시연 영상을 지원하지 않습니다.
+</video>
+
+---
+
+### polyglot-ko-1.3b - 응답 시연
+
+<video width="100%" controls>
+  <source src="static/polyglot_2.mp4" type="video/mp4">
+  브라우저가 Polyglot 시연 영상을 지원하지 않습니다.
+</video>
+
+---
+
+### KoGPT2 - 응답 시연
+
+<video width="100%" controls>
+  <source src="static/kogpt2_2.mp4" type="video/mp4">
+  브라우저가 KoGPT2 시연 영상을 지원하지 않습니다.
+</video>
 
 ---
 ## 📊 모델별 성능 비교
